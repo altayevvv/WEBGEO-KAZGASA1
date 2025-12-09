@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurs Work | Web Cartography</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;500;700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+    <style>
+        /* --- ДИЗАЙН: NIGHTFALL GLASS (Тёмный интерфейс, Светлая карта) --- */
+        :root {
+            /* Градиентный фон (Ночное небо Алматы) */
+            --bg-gradient: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05); /* Прозрачный слой */
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #00d2ff; /* Неоновый голубой */
+            --accent-hover: #3a7bd5;
+            --text-white: #ffffff;
+            --text-gray: #cfd8dc;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-white);
+            min-height: 100vh;
+        }
+
+        /* --- Скроллбар --- */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #0f2027; }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 5px; }
+
+        /* --- Шапка (Header) --- */
+        header {
+            background: rgba(15, 32, 39, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 15px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .brand span { color: var(--accent); }
+
+        .student-info {
+            font-size: 0.8rem;
+            text-align: right;
+            color: var(--text-gray);
+        }
+
+        /* --- Hero Section --- */
+        .hero {
+            text-align: center;
+            padding: 120px 20px;
+            /* ФОТО ЗАДНЕГО ФОНА */
+            background: linear-gradient(rgba(15, 32, 39, 0.6), rgba(15, 32, 39, 0.8)), url('https://sputnik.kz/img/22/53/225321_0:0:5906:3322_1920x0_80_0_0_6569bee7f833b588f92987b1fe2e4759.jpg');
+            background-size: cover;
+            background-position: center;
+            border-bottom: 2px solid var(--glass-border);
+        }
+
+        .hero h1 {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
+            text-transform: uppercase;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            color: #e0e0e0;
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+        }
+
+        .hero-tag {
+            display: inline-block;
+            background: var(--accent);
+            color: #0f2027;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+        }
+
+        /* --- Сетка карточек --- */
+        .grid-section {
+            padding: 50px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-family: 'Exo 2', sans-serif;
+            font-size: 2rem;
+            border-left: 5px solid var(--accent);
+            padding-left: 20px;
+            margin-bottom: 40px;
+        }
+
+        .cards-wrapper {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            overflow: hidden;
+            backdrop-filter: blur(5px);
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 210, 255, 0.15);
+            border-color: var(--accent);
+        }
+
+        .img-container {
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s;
+        }
+
+        .glass-card:hover .img-container img {
+            transform: scale(1.1);
+        }
+
+        .card-content {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-content h3 {
+            margin: 0 0 10px 0;
+            color: var(--accent);
+            font-family: 'Exo 2', sans-serif;
+        }
+
+        .card-content p {
+            font-size: 0.9rem;
+            color: var(--text-gray);
+            flex-grow: 1;
+        }
+
+        .btn-go {
+            margin-top: 15px;
+            padding: 10px;
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            border-radius: 5px;
+            text-transform: uppercase;
+        }
+
+        .btn-go:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* --- Секция карты --- */
+        .map-wrapper {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .controls-panel {
+            flex: 1;
+            min-width: 250px;
+            padding: 20px;
+        }
+
+        .map-frame {
+            flex: 3;
+            min-width: 300px;
+            height: 600px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid rgba(255,255,255,0.8); 
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        select {
+            width: 100%;
+            padding: 15px;
+            background: #1c2e36;
+            color: white;
+            border: 1px solid var(--glass-border);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .route-info {
+            background: rgba(0, 210, 255, 0.1);
+            border-left: 3px solid var(--accent);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 5px;
+        }
+
+        .info-row span:last-child {
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        /* Легенда для карты */
+        .legend-box {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 10px; }
+
+        footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 50px;
+            border-top: 1px solid var(--glass-border);
+            font-size: 0.8rem;
+            color: var(--text-gray);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container">
+            <div class="brand">WEB<span>GEO</span> KAZGASA</div>
+            <div class="student-info">
+                Курсовая работа: Веб-картография<br>
+                Студент: <strong>Алтай Нурсултан</strong> (ГиК 22-1)
+            </div>
+        </div>
+    </header>
+
+    <div class="hero">
+        <span class="hero-tag">УЧЕБНЫЙ ТУРИСТИЧЕСКИЙ ПРОЕКТ</span>
+        <h1>МАРШРУТЫ ЗАИЛИЙСКОГО АЛАТАУ</h1>
+        <p>Интерактивная карта для студентов КазГАСА. Организованные выезды в горную местность. Точка сбора: Кампус Университета.</p>
+    </div>
+
+    <section class="grid-section">
+        <h2 class="section-title">Карточки Локаций</h2>
+        <div class="cards-wrapper">
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://visitalmaty.kz/wp-content/uploads/2021/11/%D0%9C%D0%B5%D0%B4%D0%B5%D1%83-scaled-e1642653334143.jpg" alt="Медеу">
+                </div>
+                <div class="card-content">
+                    <h3>Высокогорный каток Медеу</h3>
+                    <p>Крупнейший в мире высокогорный комплекс для зимних видов спорта. Высота: 1691 м.</p>
+                    <button class="btn-go" onclick="buildRouteTo(0)">Построить маршрут</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://dknews.kz/storage/news/2023-10/c2ab52b5898c6c61e15de89312d1836b-1280px.webp" alt="Шымбулак">
+                </div>
+                <div class="card-content">
+                    <h3>ГК Шымбулак</h3>
+                    <p>Лучший горнолыжный курорт СНГ. Подъемники до Талгарского перевала (3200 м).</p>
+                    <button class="btn-go" onclick="buildRouteTo(1)">Построить маршрут</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://visitalmaty.kz/wp-content/uploads/2022/01/%D0%9A%D0%BE%D0%BA-%D1%82%D0%BE%D0%B1%D0%B5-4.jpg" alt="Кок-Тобе">
+                </div>
+                <div class="card-content">
+                    <h3>Парк Кок-Тобе</h3>
+                    <p>Популярное место отдыха на горе с телебашней. Лучшая панорама города на закате.</p>
+                    <button class="btn-go" onclick="buildRouteTo(2)">Построить маршрут</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://ticketon.kz/files/media/bao-3.jpg" alt="БАО">
+                </div>
+                <div class="card-content">
+                    <h3>Большое Алматинское Озеро</h3>
+                    <p>Высокогорный водоем ледникового происхождения. Главный источник питьевой воды.</p>
+                    <button class="btn-go" onclick="buildRouteTo(3)">Построить маршрут</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://arendacar.kz/wp-content/uploads/sites/16/2025/09/0_1_butvod_465.jpg" alt="Бутаковка">
+                </div>
+                <div class="card-content">
+                    <h3>Бутаковский Водопад</h3>
+                    <p>Живописное ущелье, подходящее для легкого хайкинга студентов.</p>
+                    <button class="btn-go" onclick="buildRouteTo(4)">Построить маршрут</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div class="img-container">
+                    <img src="https://visitalmaty.kz/wp-content/uploads/2022/07/%D0%A2%D0%B5%D1%80%D1%80%D0%B5%D0%BD%D0%BA%D1%83%D1%80-1-600x379.jpg" alt="Терренкур">
+                </div>
+                <div class="card-content">
+                    <h3>Терренкур (Тропа здоровья)</h3>
+                    <p>Пешеходная тропа вдоль Малой Алматинки. Идеально для утренних пробежек и прогулок.</p>
+                    <button class="btn-go" onclick="buildRouteTo(5)">Построить маршрут</button>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <section class="grid-section">
+        <h2 class="section-title">Геоинформационная Система</h2>
+        <div class="map-wrapper">
+            
+            <div class="controls-panel">
+                <p style="color: var(--accent); font-weight: bold; margin-bottom: 20px;">ПАНЕЛЬ УПРАВЛЕНИЯ</p>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+                    <small style="color: var(--text-gray);">ТОЧКА ОТПРАВЛЕНИЯ (CAMPUS):</small><br>
+                    <strong>КазГАСА</strong><br>
+                    <small style="color:#aaa;">43.205017, 76.874884</small>
+                </div>
+
+                <label>Выберите пункт назначения:</label>
+                <select id="destination-select" onchange="buildRouteTo(this.value)">
+                    <option value="" disabled selected>-- Куда едем? --</option>
+                    <option value="0">Медеу</option>
+                    <option value="1">Шымбулак</option>
+                    <option value="2">Кок-Тобе</option>
+                    <option value="3">БАО</option>
+                    <option value="4">Бутаковка</option>
+                    <option value="5">Терренкур</option>
+                </select>
+
+                <div id="route-stats" class="route-info">
+                    <div class="info-row">
+                        <span>Дистанция:</span>
+                        <span id="dist-val">0 км</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Время (Автобус):</span>
+                        <span id="time-val">0 мин</span>
+                    </div>
+                </div>
+
+                <div class="legend-box">
+                    <p style="color:white; border-bottom:1px solid #555; padding-bottom:5px;">Обозначения на карте:</p>
+                    <div class="legend-item"><div class="dot" style="background:red;"></div>Старт (КазГАСА)</div>
+                    <div class="legend-item"><div class="dot" style="background:#2a81cb;"></div>Пункт назначения</div>
+                    <div class="legend-item"><div class="dot" style="background:#9c27b0;"></div>Точки интереса (POI)</div>
+                </div>
+            </div>
+
+            <div class="map-frame">
+                <div id="map"></div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer>
+        <p>
+            © 2025 ПРОЕКТ ПО ВЕБ-КАРТОГРАФИИ<br>
+            Выполнил: <strong>Алтай Нурсултан</strong> | Группа: <strong>ГиК 22-1</strong>
+        </p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
+    <script>
+        // --- ДАННЫЕ ---
+        // Старт: КазГАСА (Обновленные координаты)
+        const startPoint = { 
+            lat: 43.205017, 
+            lng: 76.874884, 
+            title: "КазГАСА (Campus)" 
+        };
+
+        const destinations = [
+            { id: 0, lat: 43.1574, lng: 77.0590, name: "Медеу" },
+            { id: 1, lat: 43.1284, lng: 77.0807, name: "Шымбулак" },
+            { id: 2, lat: 43.2335, lng: 76.9757, name: "Кок-Тобе" },
+            { id: 3, lat: 43.0506, lng: 76.9832, name: "БАО" },
+            { id: 4, lat: 43.1855, lng: 77.0950, name: "Бутаковка" },
+            { id: 5, lat: 43.2260, lng: 76.9660, name: "Терренкур (Начало)" }
+        ];
+
+        // Точки интереса (POI)
+        const pois = [
+            { lat: 43.1700, lng: 77.0300, title: "Родник 'Ак-Булак'", type: "💧 Источник воды" },
+            { lat: 43.2300, lng: 76.9740, title: "Памятник The Beatles (Кок-Тобе)", type: "📸 Фото-зона" },
+            { lat: 43.1500, lng: 77.0650, title: "Кафе 'Ласточка' (Медеу)", type: "☕ Кафе" },
+            { lat: 43.1250, lng: 77.0850, title: "Бар 3200 (Талгарский перевал)", type: "🏔️ Смотровая" },
+            { lat: 43.0600, lng: 76.9850, title: "Смотровая на трубе (БАО)", type: "📸 Фото-зона" },
+            { lat: 43.2200, lng: 76.9550, title: "Уличные тренажеры (Терренкур)", type: "🏃 Спорт" }
+        ];
+
+        // --- ИНИЦИАЛИЗАЦИЯ КАРТЫ ---
+        var map = L.map('map').setView([43.22, 76.95], 11);
+
+        // СВЕТЛАЯ КАРТА (OpenStreetMap Standard)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // --- ИКОНКИ ---
+        var universityIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        });
+
+        var locationIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+        });
+
+        var poiIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [20, 32], iconAnchor: [10, 32], popupAnchor: [1, -28], shadowSize: [32, 32]
+        });
+
+        // Ставим маркер старта
+        L.marker([startPoint.lat, startPoint.lng], {icon: universityIcon})
+            .addTo(map)
+            .bindPopup("<b>" + startPoint.title + "</b><br>Точка сбора");
+
+        // Ставим маркеры локаций
+        destinations.forEach(d => {
+            L.marker([d.lat, d.lng], {icon: locationIcon})
+                .addTo(map)
+                .bindPopup(`<b>${d.name}</b><br><button onclick="buildRouteTo(${d.id})">Маршрут сюда</button>`);
+        });
+
+        // Ставим маркеры POI
+        pois.forEach(p => {
+            L.marker([p.lat, p.lng], {icon: poiIcon})
+                .addTo(map)
+                .bindPopup(`<b>${p.type}</b><br>${p.title}`);
+        });
+
+        // --- ЛОГИКА МАРШРУТОВ ---
+        var routingControl = null;
+
+        function buildRouteTo(id) {
+            var dest = destinations.find(x => x.id == id);
+            if (!dest) return;
+
+            // Скролл к карте
+            document.querySelector('.map-wrapper').scrollIntoView({ behavior: 'smooth' });
+            
+            // Синхрон селекта
+            document.getElementById('destination-select').value = id;
+
+            // Удаляем старый маршрут
+            if (routingControl) map.removeControl(routingControl);
+
+            // Строим новый
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(startPoint.lat, startPoint.lng),
+                    L.latLng(dest.lat, dest.lng)
+                ],
+                routeWhileDragging: false,
+                language: 'ru',
+                showAlternatives: false,
+                lineOptions: {
+                    styles: [{color: '#0074D9', opacity: 0.7, weight: 6}] // Синий цвет линии
+                },
+                createMarker: function() { return null; },
+                show: false 
+            }).on('routesfound', function(e) {
+                var routes = e.routes;
+                var summary = routes[0].summary;
+                
+                document.getElementById('dist-val').innerText = (summary.totalDistance / 1000).toFixed(1) + " км";
+                document.getElementById('time-val').innerText = Math.round(summary.totalTime / 60) + " мин";
+                
+                document.getElementById('route-stats').style.display = 'block';
+            }).addTo(map);
+        }
+    </script>
+</body>
+</html>
